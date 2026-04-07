@@ -111,12 +111,13 @@ class SohWorld(World):
                               "your host.yaml settings.")
 
         def is_child_start_forced() -> bool:
+            # We don't care about any of this if no logic is enabled
             if self.options.true_no_logic:
                 return False
 
             # If door of time is set to closed and dungeon rewards aren't shuffled or ocarinas aren't shuffled, force child spawn
-            if self.options.door_of_time.value == Options.DoorOfTime.option_closed and (
-                any([self.options.shuffle_dungeon_rewards.value == Options.ShuffleDungeonRewards.option_off,
+            if self.options.door_of_time == Options.DoorOfTime.option_closed and (
+                any([self.options.shuffle_dungeon_rewards == Options.ShuffleDungeonRewards.option_off,
                      self.options.shuffle_ocarinas == Options.ShuffleOcarinas,
                      self.options.shuffle_songs == Options.ShuffleSongs.option_off])):
                 return True
