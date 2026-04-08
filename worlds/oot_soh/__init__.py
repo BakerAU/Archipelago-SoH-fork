@@ -110,29 +110,7 @@ class SohWorld(World):
                               "setting has not been enabled. Either have them disable that option, or enable it in "
                               "your host.yaml settings.")
 
-        def is_child_start_forced() -> bool:
-            # We don't care about any of this if no logic is enabled
-            if self.options.true_no_logic:
-                return False
-
-            # If door of time is set to closed and dungeon rewards aren't shuffled or ocarinas aren't shuffled, force child spawn
-            if self.options.door_of_time == Options.DoorOfTime.option_closed and (
-                any([self.options.shuffle_dungeon_rewards == Options.ShuffleDungeonRewards.option_off,
-                     self.options.shuffle_ocarinas == Options.ShuffleOcarinas,
-                     self.options.shuffle_songs == Options.ShuffleSongs.option_off])):
-                return True
-
-            # If door of time is set to song only and songs aren't shuffled, force child spawn
-            if all([self.options.door_of_time == Options.DoorOfTime.option_song_only, self.options.shuffle_songs == Options.ShuffleSongs.option_off]):
-                return True
-            
-            # If closed forest is on, force child spawn. Will need additional logic when entrance shuffle is added in future.
-            if self.options.closed_forest == Options.ClosedForest.option_on:
-                return True
-            return False
-
-        if is_child_start_forced():
-            self.options.starting_age.value = Options.StartingAge.option_child
+        self.options.apply_any_required_option_adjustments()
 
         # Check if Tycoon Wallet is shuffled and if price settings are above what Giants Wallet can hold. Max/Min Prices need to be adjusted to fit in Giants Wallet.
         if not self.options.shuffle_tycoon_wallet.value:
