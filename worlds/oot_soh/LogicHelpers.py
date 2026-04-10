@@ -189,14 +189,6 @@ wallet_capacities: dict[Items, int] = {
     Items.TYCOON_WALLET: 999
 }
 
-token_reward_counts: dict[Locations, int] = {
-    Locations.KAK_50_GOLD_SKULLTULA_REWARD: 50,
-    Locations.KAK_40_GOLD_SKULLTULA_REWARD: 40,
-    Locations.KAK_30_GOLD_SKULLTULA_REWARD: 30,
-    Locations.KAK_20_GOLD_SKULLTULA_REWARD: 20,
-    Locations.KAK_10_GOLD_SKULLTULA_REWARD: 10
-}
-
 def can_afford_slot(slot: Locations, bundle: tuple[CollectionState, Regions, "SohWorld"]) -> bool:
     world = bundle[2]
     assert slot in world.shop_prices, f'Shop location "{str(slot)}" does not have a price assigned'

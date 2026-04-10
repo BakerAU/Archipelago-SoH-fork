@@ -1,7 +1,7 @@
 from dataclasses import dataclass
-from Options import Choice, Toggle, DefaultOnToggle, Range, PerGameCommonOptions, StartInventoryPool, Visibility, OptionGroup, OptionSet
+from Options import Choice, Toggle, DefaultOnToggle, Range, PerGameCommonOptions, StartInventoryPool, Visibility, OptionGroup, OptionSet, Accessibility
 from .Enums import Tricks, Items, TokenCounts
-from .LogicHelpers import wallet_capacities, token_reward_counts
+from .LogicHelpers import wallet_capacities
 
 class ClosedForest(Choice):
     """
@@ -1737,7 +1737,7 @@ class SohOptions(PerGameCommonOptions):
             return True
         return False
 
-    def calculate_progressive_skulltula_count(self):
+    def calculate_progressive_skulltula_count(self, token_reward_counts) -> int:
         # Start by assuming that there are no progressive skulltula tokens
         progressive_skulltula_count = 0 
 
@@ -1745,14 +1745,11 @@ class SohOptions(PerGameCommonOptions):
         turn_in_amount = 0
         if self.shuffle_100_gs_reward:
             turn_in_amount = 100
-        elif self.accessibility == "full":
+        elif self.accessibility == Accessibility.option_full:
             turn_in_amount = 50
         else:
             # If neither of the above options are on, find the first non-excluded location in the token turn ins
             # This assumes that the locations are in descending order of token amounts e.g. 50 -> 40 -> 30
-            #
-            # TODO: exclude locations doesn't seem to exist as of now! I made a best guess at what it's doing
-            # but will need to follow up on this before merging
             for location, amount in token_reward_counts.items():
                 if str(location) not in self.exclude_locations:
                     turn_in_amount = amount
@@ -1778,11 +1775,11 @@ class SohOptions(PerGameCommonOptions):
         #     - Overworld shuffle: all overworld tokens are progressive (56)
 
         shuffled_skulltulas = 0
-        if self.shuffle_skull_tokens.option_all:
+        if self.shuffle_skull_tokens == ShuffleTokens.option_all:
             shuffled_skulltulas = 100
-        elif self.shuffle_skull_tokens.option_dungeon:
+        elif self.shuffle_skull_tokens == ShuffleTokens.option_dungeon:
             shuffled_skulltulas = int(TokenCounts.DUNGEON)
-        elif self.shuffle_skull_tokens.option_overworld:
+        elif self.shuffle_skull_tokens == ShuffleTokens.option_overworld:
             shuffled_skulltulas = int(TokenCounts.OVERWORLD)
 
         # Final progressive token count should now be the max of shuffled skulltulas and the previously calculated requirements

@@ -122,7 +122,7 @@ class SohWorld(World):
 
         self.options.apply_any_required_option_adjustments()
      
-        self.randomized_progressive_skulltula_count = self.options.calculate_progressive_skulltula_count()
+        self.randomized_progressive_skulltula_count = self.options.calculate_progressive_skulltula_count(token_reward_counts=token_amounts)
 
         # Figure out Keyring Situation
         key_ring_options: list = [self.options.gerudo_fortress_key_ring, self.options.forest_temple_key_ring, self.options.fire_temple_key_ring, self.options.water_temple_key_ring,
