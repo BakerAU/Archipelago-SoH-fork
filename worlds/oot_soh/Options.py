@@ -1475,7 +1475,6 @@ class SohOptions(PerGameCommonOptions):
             for price in prices_to_check:
                 if price > wallet_capacity:
                     price = wallet_capacity 
-
             
     def enforce_maximum_price_larger_than_minimum(self):
         # If maximum price is below minimum, set max to minimum.
@@ -1488,7 +1487,6 @@ class SohOptions(PerGameCommonOptions):
 
         if self.shuffle_merchants_minimum_price > self.shuffle_merchants_maximum_price:
             self.shuffle_merchants_maximum_price.value = self.shuffle_merchants_minimum_price.value
-
 
     def empty_ammo_bags_if_selected(self):
         if self.shuffle_deku_stick_bag:
@@ -1510,6 +1508,8 @@ class SohOptions(PerGameCommonOptions):
         else:
             # If neither of the above options are on, find the first non-excluded location in the token turn ins
             # This assumes that the locations are in descending order of token amounts e.g. 50 -> 40 -> 30 
+            # TODO: exclude_locations doesn't seem to exist?? I've made a best guess on what's intended here
+            # will need to follow up before merge to see what the go is here
             for location, amount in token_amounts.items():
                 if str(location) not in self.exclude_locations:
                     turn_in_amount = amount
@@ -1521,9 +1521,9 @@ class SohOptions(PerGameCommonOptions):
         rainbow_bridge_tokens = 0
         ganons_castle_boss_key = 0
         
-        if self.rainbow_bridge == RainbowBridge.option_skull_tokens:
+        if self.rainbow_bridge == RainbowBridge.option_tokens:
             rainbow_bridge_tokens = self.rainbow_bridge_skull_tokens_required.value
-        if self.ganons_castle_boss_key == GanonsCastleBossKey.option_skull_tokens:
+        if self.ganons_castle_boss_key == GanonsCastleBossKey.option_lacs_skull_tokens:
             ganons_castle_boss_key = self.ganons_castle_boss_key_skull_tokens_required.value
         
         progressive_skulltula_count = max(progressive_skulltula_count, rainbow_bridge_tokens, ganons_castle_boss_key)
