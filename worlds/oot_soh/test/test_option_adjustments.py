@@ -31,8 +31,8 @@ class TestSohOptions:
         self.ganons_castle_boss_key = GanonsCastleBossKey.option_lacs_skull_tokens
         self.ganons_castle_boss_key_skull_tokens_required.value = amount
     
-    def calculate_progressive_skulltula_count(self):
-        return SohOptions.calculate_progressive_skulltula_count(
+    def calculate_progression_skulltula_count(self):
+        return SohOptions.calculate_progression_skulltula_count(
             cast(SohOptions, self), 
             token_reward_counts=token_amounts
         )
@@ -43,87 +43,99 @@ def options():
     return TestSohOptions()
 
 def test_base_case(options):
-    assert options.calculate_progressive_skulltula_count() == 50
+    # required = 50, available = 100 → needed = 0
+    assert options.calculate_progression_skulltula_count() == 0
 
-def test_100_gs_reward_forces_100(options):
+
+def test_100_gs_reward(options):
+    # required = 100, available = 100 → needed = 0
     options.shuffle_100_gs_reward = True
-    options.set_rainbow_bridge_tokens(80)
+    assert options.calculate_progression_skulltula_count() == 0
 
-    assert options.calculate_progressive_skulltula_count() == 100
-
-def test_full_accessibility_returns_50(options):
+def test_full_accessibility(options):
+    # required = 50 → still no shuffled tokens needed
     options.accessibility = Accessibility.option_full
+    assert options.calculate_progression_skulltula_count() == 0
 
-    assert options.calculate_progressive_skulltula_count() == 50
-
-def test_uses_first_token_reward(options):
-    expected = next(iter(token_amounts.values()))
-
-    assert options.calculate_progressive_skulltula_count() == expected
-
-def test_skips_excluded_first_location(options):
+def test_excludes_first_location(options):
+    # required drops from 50 → 40, still covered by vanilla tokens
     keys = list(token_amounts.keys())
-    values = list(token_amounts.values())
-
     options.exclude_locations = {str(keys[0])}
 
-    assert options.calculate_progressive_skulltula_count() == values[1]
+    assert options.calculate_progression_skulltula_count() == 0
 
-def test_skips_multiple_excluded_locations(options):
-    keys = list(token_amounts.keys())
-    values = list(token_amounts.values())
-
-    options.exclude_locations = {str(keys[0]), str(keys[1])}
-
-    assert options.calculate_progressive_skulltula_count() == values[2]
-
-def test_rainbow_bridge_tokens_used(options):
+def test_rainbow_bridge_tokens(options):
+    # required = 80, available = 100 → needed = 0
     options.set_rainbow_bridge_tokens(80)
 
-    assert options.calculate_progressive_skulltula_count() == 80
+    assert options.calculate_progression_skulltula_count() == 0
 
-def test_ganons_castle_key_tokens_used(options):
+def test_ganons_castle_tokens(options):
+    # required = 70 → still covered
     options.set_ganons_castle_key_tokens(70)
 
-    assert options.calculate_progressive_skulltula_count() == 70
+    assert options.calculate_progression_skulltula_count() == 0
 
-def test_returns_max_of_bridge_and_boss_key(options):
-    options.set_rainbow_bridge_tokens(80)
-    options.set_ganons_castle_key_tokens(70)
-
-    assert options.calculate_progressive_skulltula_count() == 80
-
-def test_returns_max_of_all_sources(options):
+def test_max_requirement_used(options):
+    # max(80, 90) = 90 → still covered by vanilla tokens
     options.set_rainbow_bridge_tokens(80)
     options.set_ganons_castle_key_tokens(90)
 
-    assert options.calculate_progressive_skulltula_count() == 90
+    assert options.calculate_progression_skulltula_count() == 0
 
-def test_shuffle_all_tokens_returns_100(options):
+def test_shuffle_all_tokens(options):
+    # required = 50, available = 0 → needed = 50
     options.shuffle_skull_tokens = ShuffleTokens.option_all
 
-    assert options.calculate_progressive_skulltula_count() == 100
+    assert options.calculate_progression_skulltula_count() == 50
 
 def test_shuffle_dungeon_tokens(options):
+    # required = 50, available ≈ 56 → needed = 0
     options.shuffle_skull_tokens = ShuffleTokens.option_dungeon
-    # TokenCounts.DUNGEONS is 44, which is lower than default 50
-    assert options.calculate_progressive_skulltula_count() == 50
+
+    assert options.calculate_progression_skulltula_count() == 0
 
 def test_shuffle_overworld_tokens(options):
+    # required = 50, available = 44 → needed = 6
     options.shuffle_skull_tokens = ShuffleTokens.option_overworld
 
-    assert options.calculate_progressive_skulltula_count() == int(TokenCounts.OVERWORLD)
+    assert options.calculate_progression_skulltula_count() == 6
 
-def test_requirement_beats_shuffle(options):
-    options.shuffle_skull_tokens = ShuffleTokens.option_dungeon
+def test_shuffle_all_with_high_requirement(options):
+    # required = 80, available = 0 → needed = 80
     options.set_rainbow_bridge_tokens(80)
-
-    assert options.calculate_progressive_skulltula_count() == 80
-
-def test_shuffle_beats_smaller_requirement(options):
     options.shuffle_skull_tokens = ShuffleTokens.option_all
+
+    assert options.calculate_progression_skulltula_count() == 80
+
+def test_partial_shuffle_with_requirement(options):
+    # required = 80, available ≈ 56 → needed = 24
     options.set_rainbow_bridge_tokens(80)
+    options.shuffle_skull_tokens = ShuffleTokens.option_dungeon
 
-    assert options.calculate_progressive_skulltula_count() == 100
+    assert options.calculate_progression_skulltula_count() == 24
 
 
+def test_zero_when_requirement_fully_covered(options):
+    # required = 10, available = 100 → needed = 0
+    options.set_rainbow_bridge_tokens(10)
+
+    assert options.calculate_progression_skulltula_count() == 0
+
+def test_caps_at_100(options):
+    # required = 100, available = 0 → needed = 100
+    options.shuffle_100_gs_reward = True
+    options.shuffle_skull_tokens = ShuffleTokens.option_all
+
+    assert options.calculate_progression_skulltula_count() == 100
+
+def test_exclusion_affects_required_shuffled_tokens(options):
+    # drop from 50 → 40
+    keys = list(token_amounts.keys())
+    options.exclude_locations = {str(keys[0])}
+
+    # available = 44 (overworld shuffled)
+    options.shuffle_skull_tokens = ShuffleTokens.option_overworld
+
+    # required = 40, available = 44 → needed = 0
+    assert options.calculate_progression_skulltula_count() == 0

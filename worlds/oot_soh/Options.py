@@ -1737,9 +1737,9 @@ class SohOptions(PerGameCommonOptions):
             return True
         return False
 
-    def calculate_progressive_skulltula_count(self, token_reward_counts) -> int:
-        # Start by assuming that there are no progressive skulltula tokens
-        progressive_skulltula_count = 0 
+    def calculate_progression_skulltula_count(self, token_reward_counts) -> int:
+        # Start by assuming that there are no progression skulltula tokens
+        required_skulltula_count = 0 
 
         # Figure out the turn in amount required based on 100gs reward and accessibility settings
         turn_in_amount = 0
@@ -1754,7 +1754,7 @@ class SohOptions(PerGameCommonOptions):
                 if str(location) not in self.exclude_locations:
                     turn_in_amount = amount
                     break
-        progressive_skulltula_count = max(progressive_skulltula_count, turn_in_amount)
+        required_skulltula_count = max(required_skulltula_count, turn_in_amount)
  
         # Then we need to know if there's any other token count requirements. This is for things like 
         # Skulltula requires for Rainbow Bridge or Ganon's Castle Boss Key
@@ -1766,13 +1766,15 @@ class SohOptions(PerGameCommonOptions):
         if self.ganons_castle_boss_key == GanonsCastleBossKey.option_lacs_skull_tokens:
             ganons_castle_boss_key = self.ganons_castle_boss_key_skull_tokens_required.value
         
-        progressive_skulltula_count = max(progressive_skulltula_count, rainbow_bridge_tokens, ganons_castle_boss_key)
+        required_skulltula_count = max(required_skulltula_count, rainbow_bridge_tokens, ganons_castle_boss_key)
 
-        # Finally, we need to calculate token requirements based on token shuffle settings based on the locations they can be shuffled in
-        # It should break down to the following:
-        #     - ALL shuffle: all tokens are progressive (100)
-        #     - Dungeon shuffle: all dungeon tokens are progressive (44)
-        #     - Overworld shuffle: all overworld tokens are progressive (56)
+        # Finally, we need to calculate how many of the shuffled tokens are required to complete
+        # the seed. This will be the total required skulltula count minus the amount of vanilla tokens
+        # that are still available based on the skull shuffle settings.
+        #
+        # For example, if you need 80 GS tokens to complete the seed, and dungeon tokens are shuffled
+        # then you have 56 vanilla tokens available to you, so you would require 24 of the shuffled
+        # tokens to finish the game. The rest would be optional
 
         shuffled_skulltulas = 0
         if self.shuffle_skull_tokens == ShuffleTokens.option_all:
@@ -1782,9 +1784,11 @@ class SohOptions(PerGameCommonOptions):
         elif self.shuffle_skull_tokens == ShuffleTokens.option_overworld:
             shuffled_skulltulas = int(TokenCounts.OVERWORLD)
 
-        # Final progressive token count should now be the max of shuffled skulltulas and the previously calculated requirements
-        
-        return max(progressive_skulltula_count, shuffled_skulltulas)
+        available_vanilla_tokens = 100 - shuffled_skulltulas
+        needed_shuffled_tokens = max(0, required_skulltula_count - available_vanilla_tokens)
+
+        # Clamp the returned range between 0 and 100 just for sanity's sake
+        return max(0, min(needed_shuffled_tokens, 100))
 
 
 soh_option_groups = [
