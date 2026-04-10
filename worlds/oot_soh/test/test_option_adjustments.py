@@ -82,17 +82,7 @@ def test_rainbow_bridge_tokens_used(options):
 
     assert options.calculate_progressive_skulltula_count() == 80
 
-def test_rainbow_bridge_overrides_turn_in(options):
-    options.set_rainbow_bridge_tokens(80)
-
-    assert options.calculate_progressive_skulltula_count() == 80
-
 def test_ganons_castle_key_tokens_used(options):
-    options.set_ganons_castle_key_tokens(70)
-
-    assert options.calculate_progressive_skulltula_count() == 70
-
-def test_ganons_castle_key_overrides_turn_in(options):
     options.set_ganons_castle_key_tokens(70)
 
     assert options.calculate_progressive_skulltula_count() == 70
@@ -116,7 +106,7 @@ def test_shuffle_all_tokens_returns_100(options):
 
 def test_shuffle_dungeon_tokens(options):
     options.shuffle_skull_tokens = ShuffleTokens.option_dungeon
-
+    # TokenCounts.DUNGEONS is 44, which is lower than default 50
     assert options.calculate_progressive_skulltula_count() == 50
 
 def test_shuffle_overworld_tokens(options):
