@@ -1713,30 +1713,6 @@ class SohOptions(PerGameCommonOptions):
         if self.shuffle_100_gs_reward == Shuffle100GSReward.option_false:
             self.gs_100_hint.value = GS100Hint.option_false
 
-    def apply_any_required_option_adjustments(self):
-        self.adjust_for_forced_child_starts()
-
-    def adjust_for_forced_child_starts(self):
-        # We don't care about any of this if no logic is enabled
-        if self.true_no_logic:
-            return False
-
-        # If door of time is set to closed and dungeon rewards aren't shuffled or ocarinas aren't shuffled, force child spawn
-        if self.door_of_time == DoorOfTime.option_closed and (
-            any([self.shuffle_dungeon_rewards == ShuffleDungeonRewards.option_off,
-                    self.shuffle_ocarinas == ShuffleOcarinas,
-                    self.shuffle_songs == ShuffleSongs.option_off])):
-            return True
-
-        # If door of time is set to song only and songs aren't shuffled, force child spawn
-        if all([self.door_of_time == DoorOfTime.option_song_only, self.shuffle_songs == ShuffleSongs.option_off]):
-            return True
-        
-        # If closed forest is on, force child spawn. Will need additional logic when entrance shuffle is added in future.
-        if self.closed_forest == ClosedForest.option_on:
-            return True
-        return False
-
     def calculate_progression_skulltula_count(self, token_reward_counts) -> int:
         # Start by assuming that there are no progression skulltula tokens
         required_skulltula_count = 0 
