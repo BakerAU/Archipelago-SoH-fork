@@ -1714,35 +1714,49 @@ class SohOptions(PerGameCommonOptions):
             self.gs_100_hint.value = GS100Hint.option_false
 
     def calculate_progression_skulltula_count(self, token_reward_counts) -> int:
-        # Start by assuming that there are no progression skulltula tokens
-        required_skulltula_count = 0 
+        # First we need to figure out how many skulltula tokens are shuffled.
+        # This lets us know how many vanilla tokes there are in the seed
+        shuffled_token_count = 0
+        if self.shuffle_skull_tokens == ShuffleTokens.option_all:
+            shuffled_token_count = TokenCounts.TOTAL
+        elif self.shuffle_skull_tokens == ShuffleTokens.option_dungeon:
+            shuffled_token_count = TokenCounts.DUNGEON
+        elif self.shuffle_skull_tokens == ShuffleTokens.option_overworld:
+            shuffled_token_count = TokenCounts.OVERWORLD
 
-        # Figure out the turn in amount required based on 100gs reward and accessibility settings
-        turn_in_amount = 0
+        # If accessibility is set to minimal, set all the shuffled tokens to be required.
+        # This aims to better act in the spirit of minimal accessibility by reducing the number
+        # of vanilla tokens that are available to the player that are considered 'progression'
+        # This should hopefully allow for 'smaller' minimal seeds.
+
+        if self.accessibility == Accessibility.option_minimal:
+            return shuffled_token_count
+
+        # Figure out the required skulltula count required based on 100gs reward and accessibility settings
+        required_skulltula_count = 0
         if self.shuffle_100_gs_reward:
-            turn_in_amount = 100
+            required_skulltula_count = TokenCounts.TOTAL
         elif self.accessibility == Accessibility.option_full:
-            turn_in_amount = 50
+            required_skulltula_count = 50
         else:
             # If neither of the above options are on, find the first non-excluded location in the token turn ins
             # This assumes that the locations are in descending order of token amounts e.g. 50 -> 40 -> 30
             for location, amount in token_reward_counts.items():
                 if str(location) not in self.exclude_locations:
-                    turn_in_amount = amount
+                    required_skulltula_count = amount
                     break
-        required_skulltula_count = max(required_skulltula_count, turn_in_amount)
  
         # Then we need to know if there's any other token count requirements. This is for things like 
         # Skulltula requires for Rainbow Bridge or Ganon's Castle Boss Key
         rainbow_bridge_tokens = 0
-        ganons_castle_boss_key = 0
+        ganons_castle_boss_key_tokens = 0
         
         if self.rainbow_bridge == RainbowBridge.option_tokens:
             rainbow_bridge_tokens = self.rainbow_bridge_skull_tokens_required.value
         if self.ganons_castle_boss_key == GanonsCastleBossKey.option_lacs_skull_tokens:
-            ganons_castle_boss_key = self.ganons_castle_boss_key_skull_tokens_required.value
+            ganons_castle_boss_key_tokens = self.ganons_castle_boss_key_skull_tokens_required.value
         
-        required_skulltula_count = max(required_skulltula_count, rainbow_bridge_tokens, ganons_castle_boss_key)
+        required_skulltula_count = max(required_skulltula_count, rainbow_bridge_tokens, ganons_castle_boss_key_tokens)
 
         # Finally, we need to calculate how many of the shuffled tokens are required to complete
         # the seed. This will be the total required skulltula count minus the amount of vanilla tokens
@@ -1751,20 +1765,11 @@ class SohOptions(PerGameCommonOptions):
         # For example, if you need 80 GS tokens to complete the seed, and dungeon tokens are shuffled
         # then you have 56 vanilla tokens available to you, so you would require 24 of the shuffled
         # tokens to finish the game. The rest would be optional
+        vanilla_token_count = TokenCounts.TOTAL - shuffled_token_count
+        needed_shuffled_tokens = max(0, required_skulltula_count - vanilla_token_count)
 
-        shuffled_skulltulas = 0
-        if self.shuffle_skull_tokens == ShuffleTokens.option_all:
-            shuffled_skulltulas = 100
-        elif self.shuffle_skull_tokens == ShuffleTokens.option_dungeon:
-            shuffled_skulltulas = int(TokenCounts.DUNGEON)
-        elif self.shuffle_skull_tokens == ShuffleTokens.option_overworld:
-            shuffled_skulltulas = int(TokenCounts.OVERWORLD)
-
-        available_vanilla_tokens = 100 - shuffled_skulltulas
-        needed_shuffled_tokens = max(0, required_skulltula_count - available_vanilla_tokens)
-
-        # Clamp the returned range between 0 and 100 just for sanity's sake
-        return max(0, min(needed_shuffled_tokens, 100))
+        # Make sure this can't exceed the total amount of shuffled tokens
+        return min(needed_shuffled_tokens, shuffled_token_count)
 
 
 soh_option_groups = [
