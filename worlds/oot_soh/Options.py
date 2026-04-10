@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from Options import Choice, Toggle, DefaultOnToggle, Range, PerGameCommonOptions, StartInventoryPool, Visibility, OptionGroup, OptionSet
-from .Enums import Tricks
+from .Enums import Tricks, TokenCounts
 
 
 class ClosedForest(Choice):
@@ -1439,9 +1439,9 @@ class SohOptions(PerGameCommonOptions):
     merchant_affordable_prices: MerchantAffordablePrices
 
     def apply_any_required_option_adjustments(self):
-        self.adjust_for_forced_child_starts()
+        self.enforce_starting_age_rules()
 
-    def adjust_for_forced_child_starts(self):
+    def enforce_starting_age_rules(self):
         # We don't care about any of this if no logic is enabled
         if self.true_no_logic:
             return False
@@ -1456,11 +1456,95 @@ class SohOptions(PerGameCommonOptions):
         # If door of time is set to song only and songs aren't shuffled, force child spawn
         if all([self.door_of_time == DoorOfTime.option_song_only, self.shuffle_songs == ShuffleSongs.option_off]):
             return True
-        
+
         # If closed forest is on, force child spawn. Will need additional logic when entrance shuffle is added in future.
         if self.closed_forest == ClosedForest.option_on:
             return True
         return False
+    
+    def apply_price_ceiling_to_shop_prices(self, wallet_capacity):
+        prices_to_check = [
+            self.shuffle_shops_minimum_price, 
+            self.shuffle_shops_maximum_price, 
+            self.shuffle_scrubs_minimum_price, 
+            self.shuffle_scrubs_maximum_price, 
+            self.shuffle_merchants_minimum_price, 
+            self.shuffle_merchants_maximum_price
+        ]
+        if not self.shuffle_tycoon_wallet:
+            for price in prices_to_check:
+                if price > wallet_capacity:
+                    price = wallet_capacity 
+
+            
+    def enforce_maximum_price_larger_than_minimum(self):
+        # If maximum price is below minimum, set max to minimum.
+        
+        if self.shuffle_shops_minimum_price > self.shuffle_shops_maximum_price:
+            self.shuffle_shops_maximum_price.value = self.shuffle_shops_minimum_price.value
+
+        if self.shuffle_scrubs_minimum_price > self.shuffle_scrubs_maximum_price:
+            self.shuffle_scrubs_maximum_price.value = self.shuffle_scrubs_minimum_price.value
+
+        if self.shuffle_merchants_minimum_price > self.shuffle_merchants_maximum_price:
+            self.shuffle_merchants_maximum_price.value = self.shuffle_merchants_minimum_price.value
+
+
+    def empty_ammo_bags_if_selected(self):
+        if self.shuffle_deku_stick_bag:
+            self.start_with_stick_ammo.value = 0
+
+        if self.shuffle_deku_nut_bag:
+            self.start_with_nut_ammo.value = 0
+
+    def calculate_progressive_skulltula_count(self, token_amounts):
+        # Start by assuming that there are no progressive skulltula tokens
+        progressive_skulltula_count = 0 
+
+        # Figure out the turn in amount required based on 100gs reward and accessibility settings
+        turn_in_amount = 0
+        if self.shuffle_100_gs_reward:
+            turn_in_amount = 100
+        elif self.accessibility == "full":
+            turn_in_amount = 50
+        else:
+            # If neither of the above options are on, find the first non-excluded location in the token turn ins
+            # This assumes that the locations are in descending order of token amounts e.g. 50 -> 40 -> 30 
+            for location, amount in token_amounts.items():
+                if str(location) not in self.exclude_locations:
+                    turn_in_amount = amount
+                    break
+        progressive_skulltula_count = max(progressive_skulltula_count, turn_in_amount)
+ 
+        # Then we need to know if there's any other token count requirements. This is for things like 
+        # Skulltula requires for Rainbow Bridge or Ganon's Castle Boss Key
+        rainbow_bridge_tokens = 0
+        ganons_castle_boss_key = 0
+        
+        if self.rainbow_bridge == RainbowBridge.option_skull_tokens:
+            rainbow_bridge_tokens = self.rainbow_bridge_skull_tokens_required.value
+        if self.ganons_castle_boss_key == GanonsCastleBossKey.option_skull_tokens:
+            ganons_castle_boss_key = self.ganons_castle_boss_key_skull_tokens_required.value
+        
+        progressive_skulltula_count = max(progressive_skulltula_count, rainbow_bridge_tokens, ganons_castle_boss_key)
+
+        # Finally, we need to calculate token requirements based on token shuffle settings based on the locations they can be shuffled in
+        # It should break down to the following:
+        #     - ALL shuffle: all tokens are progressive (100)
+        #     - Dungeon shuffle: all dungeon tokens are progressive (44)
+        #     - Overworld shuffle: all overworld tokens are progressive (56)
+
+        shuffled_skulltulas = 0
+        if self.shuffle_skull_tokens.option_all:
+            shuffled_skulltulas = 100
+        elif self.shuffle_skull_tokens.option_dungeon:
+            shuffled_skulltulas = int(TokenCounts.DUNGEON)
+        elif self.shuffle_skull_tokens.option_overworld:
+            shuffled_skulltulas = int(TokenCounts.OVERWORLD)
+
+        # Final progressive token count should now be the max of shuffled skulltulas and the previously calculated requirements
+        
+        return max(progressive_skulltula_count, shuffled_skulltulas)
 
 
 soh_option_groups = [

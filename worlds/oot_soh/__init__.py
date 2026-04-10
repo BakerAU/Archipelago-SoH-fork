@@ -110,58 +110,11 @@ class SohWorld(World):
                               "setting has not been enabled. Either have them disable that option, or enable it in "
                               "your host.yaml settings.")
 
-        self.options.apply_any_required_option_adjustments()
-
-        # Check if Tycoon Wallet is shuffled and if price settings are above what Giants Wallet can hold. Max/Min Prices need to be adjusted to fit in Giants Wallet.
-        if not self.options.shuffle_tycoon_wallet.value:
-            for option in (self.options.shuffle_shops_minimum_price, self.options.shuffle_shops_maximum_price, self.options.shuffle_scrubs_minimum_price, self.options.shuffle_scrubs_maximum_price, self.options.shuffle_merchants_minimum_price, self.options.shuffle_merchants_maximum_price):
-                if option.value > wallet_capacities[Items.GIANT_WALLET]:
-                    option.value = wallet_capacities[Items.GIANT_WALLET]
-
-        # If maximum price is below minimum, set max to minimum.
-        if self.options.shuffle_shops_minimum_price.value > self.options.shuffle_shops_maximum_price.value:
-            self.options.shuffle_shops_maximum_price.value = self.options.shuffle_shops_minimum_price.value
-
-        if self.options.shuffle_scrubs_minimum_price.value > self.options.shuffle_scrubs_maximum_price.value:
-            self.options.shuffle_scrubs_maximum_price.value = self.options.shuffle_scrubs_minimum_price.value
-
-        if self.options.shuffle_merchants_minimum_price.value > self.options.shuffle_merchants_maximum_price.value:
-            self.options.shuffle_merchants_maximum_price.value = self.options.shuffle_merchants_minimum_price.value
-
-        if self.options.shuffle_deku_stick_bag.value:
-            self.options.start_with_stick_ammo.value = 0
-
-        if self.options.shuffle_deku_nut_bag.value:
-            self.options.start_with_nut_ammo.value = 0
-
-        if self.options.shuffle_dungeon_rewards in ("off", "end_of_dungeons"):
-            self.options.start_with_links_pocket.value = 0
-
-        # Figure out how many Skulltula tokens need to be progressive
-        # Max amount from KAK turn ins
-        turn_in_amount: int = 0
-
-        if self.options.shuffle_100_gs_reward:
-            turn_in_amount = 100
-        elif self.options.accessibility == "full":
-            turn_in_amount = 50
-        else:
-            for location, amount in token_amounts.items():
-                if str(location) not in self.options.exclude_locations:
-                    turn_in_amount = amount
-                    break
-
-        progressive_skulltula_count: int = max(self.options.rainbow_bridge_skull_tokens_required.value if self.options.rainbow_bridge.value == 6 else 0,
-                                               self.options.ganons_castle_boss_key_skull_tokens_required.value if self.options.ganons_castle_boss_key.value == 7 else 0, turn_in_amount)
-
-        if self.options.shuffle_skull_tokens:
-            vanilla_progressive_skulltula_count = 0
-            if self.options.shuffle_skull_tokens == "dungeon":
-                vanilla_progressive_skulltula_count = max(progressive_skulltula_count - int(TokenCounts.DUNGEON), 0)
-            elif self.options.shuffle_skull_tokens == "overworld":
-                vanilla_progressive_skulltula_count = max(progressive_skulltula_count - int(TokenCounts.OVERWORLD), 0)
-                
-            self.randomized_progressive_skulltula_count = progressive_skulltula_count - vanilla_progressive_skulltula_count
+        self.options.enforce_starting_age_rules()
+        self.options.apply_price_ceiling_to_shop_prices(wallet_capacities[Items.GIANT_WALLET])
+        self.options.enforce_maximum_price_larger_than_minimum()
+        self.options.empty_ammo_bags_if_selected()
+        self.randomized_progressive_skulltula_count = self.options.calculate_progressive_skulltula_count(token_amounts)
 
         # Figure out Keyring Situation
         key_ring_options: list = [self.options.gerudo_fortress_key_ring, self.options.forest_temple_key_ring, self.options.fire_temple_key_ring, self.options.water_temple_key_ring,
