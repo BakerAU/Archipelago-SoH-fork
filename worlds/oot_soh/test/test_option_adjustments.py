@@ -6,7 +6,7 @@ import pytest
 from typing import cast
 from types import SimpleNamespace
 
-class TestSohOptions:
+class TestSohOptionsForRequiredSkulltulaCount:
 
     def __init__(self):
         # These are picked to avoid the conditions we're testing for to make it easier to isolate
@@ -39,7 +39,7 @@ class TestSohOptions:
 
 @pytest.fixture
 def options():
-    return TestSohOptions()
+    return TestSohOptionsForRequiredSkulltulaCount()
 
 def test_base_case(options):
     assert options.calculate_progression_skulltula_count() == 0

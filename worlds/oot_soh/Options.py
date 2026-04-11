@@ -1732,20 +1732,18 @@ class SohOptions(PerGameCommonOptions):
         if self.accessibility == Accessibility.option_minimal:
             return shuffled_token_count
 
-        # Figure out the required skulltula count required based on 100gs reward and accessibility settings
-        required_skulltula_count = 0
+        # All 100 required to obtain 100gs reward, so all are progression if reward is shuffled
         if self.shuffle_100_gs_reward:
             required_skulltula_count = TokenCounts.TOTAL
-        elif self.accessibility == Accessibility.option_full:
-            required_skulltula_count = 50
+        # Otherwise, find the highest non-excluded token reward and set that as the required count
+        # This assumes that the locations are in descending order of token amounts e.g. 50 -> 40 -> 30
+        # Should end up with 50 most of the time since that's the biggest reward, but if 50 is excluded then it would be 40, etc.
         else:
-            # If neither of the above options are on, find the first non-excluded location in the token turn ins
-            # This assumes that the locations are in descending order of token amounts e.g. 50 -> 40 -> 30
             for location, amount in token_reward_counts.items():
                 if str(location) not in self.exclude_locations:
                     required_skulltula_count = amount
                     break
- 
+
         # Then we need to know if there's any other token count requirements. This is for things like 
         # Skulltula requires for Rainbow Bridge or Ganon's Castle Boss Key
         rainbow_bridge_tokens = 0
