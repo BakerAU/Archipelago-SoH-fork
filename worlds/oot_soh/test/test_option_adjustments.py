@@ -48,6 +48,15 @@ def test_100_gs_reward(options):
     options.shuffle_100_gs_reward = True
     assert options.calculate_progression_skulltula_count() == 0
 
+    options.shuffle_skull_tokens = ShuffleTokens.option_all
+    assert options.calculate_progression_skulltula_count() == 100
+
+    options.shuffle_skull_tokens = ShuffleTokens.option_dungeon
+    assert options.calculate_progression_skulltula_count() == 44
+
+    options.shuffle_skull_tokens = ShuffleTokens.option_overworld
+    assert options.calculate_progression_skulltula_count() == 56
+
 def test_excludes_first_location(options):
     keys = list(token_amounts.keys())
     options.exclude_locations = {str(keys[0])}
