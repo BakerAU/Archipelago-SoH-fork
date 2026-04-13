@@ -1763,7 +1763,7 @@ class SohOptions(PerGameCommonOptions):
             # tokens to finish the game. The rest would be optional
             needed_shuffled_tokens = max(0, required_skulltula_count - vanilla_token_count)
         else:
-            # If accessibility is set to minimal, set all the shuffled tokens to be required.
+            # If accessibility is set to minimal, set all the shuffled tokens to be progression.
             # This aims to better act in the spirit of minimal accessibility by reducing the number
             # of vanilla tokens that are available to the player that are considered 'progression'
             # This should hopefully allow for lower access minimal seeds.
