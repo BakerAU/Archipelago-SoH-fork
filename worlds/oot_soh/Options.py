@@ -3,6 +3,13 @@ from Options import Choice, Toggle, DefaultOnToggle, Range, PerGameCommonOptions
 from .Enums import Tricks, Items, TokenCounts
 from .LogicHelpers import wallet_capacities
 
+wallet_capacities: dict[Items, int] = {
+    Items.CHILD_WALLET: 99,
+    Items.ADULT_WALLET: 200,
+    Items.GIANT_WALLET: 500,
+    Items.TYCOON_WALLET: 999
+}
+
 class ClosedForest(Choice):
     """
     On - Kokiri Sword & Deku Shield are required to access the Deku Tree, and completing the Deku Tree is required to access the Lost Woods Bridge Exit.
@@ -140,40 +147,44 @@ class RainbowBridgeGregModifier(Choice):
 class RainbowBridgeStonesRequired(Range):
     """
     If Rainbow Bridge is set to stones, this is how many Spiritual Stones are required to open it.
+    If the Greg Modifier not set to Reward, the max will be 3
     """
     display_name = "Rainbow Bridge Stones Required"
     range_start = 1
-    range_end = 3
+    range_end = 4
     default = 3
 
 
 class RainbowBridgeMedallionsRequired(Range):
     """
     If Rainbow Bridge is set to medallions, this is how many medallions are required to open it.
+    If the Greg Modifier not set to Reward, the max will be 6
     """
     display_name = "Rainbow Bridge Medallions Required"
     range_start = 1
-    range_end = 6
+    range_end = 7
     default = 6
 
 
 class RainbowBridgeDungeonRewardsRequired(Range):
     """
     If Rainbow Bridge is set to dungeon rewards, this is how many dungeon rewards are required to open it.
+    If the Greg Modifier not set to Reward, the max will be 9
     """
     display_name = "Rainbow Bridge Dungeon Rewards Required"
     range_start = 1
-    range_end = 9
+    range_end = 10
     default = 9
 
 
 class RainbowBridgeDungeonsRequired(Range):
     """
     If Rainbow Bridge is set to dungeons, this is how many completed dungeons are required to open it.
+    If the Greg Modifier not set to Reward, the max will be 8
     """
     display_name = "Rainbow Bridge Dungeons Required"
     range_start = 1
-    range_end = 8
+    range_end = 9
     default = 8
 
 
@@ -726,10 +737,11 @@ class GanonsCastleBossKeyStonesRequired(Range):
     """
     If Ganon's Boss Key is set to stones, this is how many Spiritual Stones are required to open it.
     Once the required amount is reached, the boss key will be granted through the Light Arrow cutscene in the Temple of Time.
+    If the Greg Modifier not set to Reward, the max will be 3
     """
     display_name = "Ganons Castle Boss Key Stones Required"
     range_start = 1
-    range_end = 3
+    range_end = 4
     default = 3
 
 
@@ -737,21 +749,23 @@ class GanonsCastleBossKeyMedallionsRequired(Range):
     """
     If Ganon's Boss Key is set to medallions, this is how many medallions are required to open it.
     Once the required amount is reached, the boss key will be granted through the Light Arrow cutscene in the Temple of Time.
+    If the Greg Modifier not set to Reward, the max will be 6
     """
     display_name = "Ganons Castle Boss Key Medallions Required"
     range_start = 1
-    range_end = 6
+    range_end = 7
     default = 6
 
-# TODO This can be 10 if greg is a reward 
+
 class GanonsCastleBossKeyDungeonRewardsRequired(Range):
     """
     If Ganon's Boss Key is set to dungeon rewards, this is how many dungeon rewards are required to open it.
     Once the required amount is reached, the boss key will be granted through the Light Arrow cutscene in the Temple of Time.
+    If the Greg Modifier not set to Reward, the max will be 9
     """
     display_name = "Ganons Castle Boss Key Dungeon Rewards Required"
     range_start = 1
-    range_end = 9
+    range_end = 10
     default = 6
 
 
@@ -759,10 +773,11 @@ class GanonsCastleBossKeyDungeonsRequired(Range):
     """
     If Ganon's Boss Key is set to dungeons, this is how many dungeon completions are required to open it.
     Once the required amount is reached, the boss key will be granted through the Light Arrow cutscene in the Temple of Time.
+    If the Greg Modifier not set to Reward, the max will be 8
     """
     display_name = "Ganons Castle Boss Key Dungeons Required"
     range_start = 1
-    range_end = 8
+    range_end = 9
     default = 8
 
 
@@ -1047,7 +1062,7 @@ class StartingAge(Choice):
     Decide whether to start as child Link or adult Link.
     Child Link starts in Link's House in Kokiri Forest.
     Adult Link starts in the Temple of Time.
-    CAUTION: When Door of Time is set to closed, and Shuffle Dungeon Rewards set to off, this option will be forced to child.
+    CAUTION: When Door of Time is set to closed and either Shuffle Dungeon Rewards set to off or Ocarinas aren't shuffled, this option will be forced to child.
     """
     display_name = "Starting Age"
     option_child = 0
@@ -1082,6 +1097,47 @@ class IceTrapFillerReplacement(Range):
     range_start = 0
     range_end = 100
     default = 0
+
+class HintClarity(Choice):
+    """
+    Sets the difficulty of hints.
+
+    Obscure - Hints tell you the tier of an item but not what it is.
+    Hookshot > Important Item
+
+    Ambiguous (Experimental) - Hints tell you what the item could be based on its item group.
+    Light Arrows > Magic Arrows
+    (Quality of groups depends on game)
+
+    Clear - Hints tell you exactly what the item is and opens the hint in the hint tab for free.
+    Boomerang > Boomerang
+    """
+    display_name = "Hint Clarity"
+    option_obscure = 0
+    option_ambiguous = 1
+    option_clear = 2
+    default = 2
+
+class GossipStoneHints(Choice):
+    """
+    Choose wether gossip stones should give hints and what is required to read them. Currently
+    the stones can only give out location hints and junk hints. Way of the hero and barren hints
+    are not yet implemented.
+
+    None: Gossip stones do not give out hints.
+
+    Need nothing: Gossip stones give out hints and you don't need anything to read them.
+
+    Need truth: Gossip stones give out hints but you need Mask of Truth to read them.
+
+    Need stone: Gossip stones give out hints but you need Stone of Agony to read them.
+    """
+    display_name = "Gossip Stone Hints"
+    option_none = 0
+    option_need_nothing = 1
+    option_need_truth = 2
+    option_need_stone = 3
+    default = 1
 
 class ToTAltarHint(Toggle):
     """
@@ -1196,12 +1252,12 @@ class FishingPoleHint(Toggle):
     """
     display_name = "Fishing Pole Hint"
 
-class WarpSongHint(Toggle):
-    """
-    Playing a warp song will tell you where it leads.
-    (If warp song destinations are vanilla, this is always enabled)
-    """
-    display_name = "Warp Song Hints"
+#class WarpSongHint(Toggle):
+#    """
+#    Playing a warp song will tell you where it leads.
+#    (If warp song destinations are vanilla, this is always enabled)
+#    """
+#    display_name = "Warp Song Hints"
 
 class ScrubHintText(Toggle):
     """
@@ -1586,7 +1642,6 @@ class SohOptions(PerGameCommonOptions):
     start_with_nocturne :StartWithNocturne
     start_with_prelude :StartWithPrelude
     #StartingTokens
-    #StartingHearts
     full_wallets: FullWallets
     bombchu_bag: BombchuBag
     bombchu_drops: BombchuDrops
@@ -1611,6 +1666,8 @@ class SohOptions(PerGameCommonOptions):
     shop_affordable_prices: ShopAffordablePrices
     scrub_affordable_prices: ScrubAffordablePrices
     merchant_affordable_prices: MerchantAffordablePrices
+    hint_clarity: HintClarity
+    gossip_stone_hints: GossipStoneHints
     tot_altar_hint: ToTAltarHint
     ganondorf_hint: GanondorfHint
     sheik_la_hint: SheikLightArrowHint
@@ -1628,7 +1685,7 @@ class SohOptions(PerGameCommonOptions):
     malon_hint: MalonHint
     horseback_archery_hint: HorsebackArcheryHint
     fishing_pole_hint: FishingPoleHint
-    warp_song_hint: WarpSongHint
+    #warp_song_hint: WarpSongHint   # Not required until they can be randomized
     scrub_hints: ScrubHintText
     merchant_hints: MerchantHintText
     gs_10_hint: GS10Hint
@@ -1644,6 +1701,7 @@ class SohOptions(PerGameCommonOptions):
         self.adjust_prices()
         self.adjust_starting_items()
         self.adjust_irrelevant_hints()
+        self.adjust_greg_modifiers()
 
 
     def adjust_for_forced_child_starts(self):
@@ -1654,7 +1712,7 @@ class SohOptions(PerGameCommonOptions):
         # If door of time is set to closed and dungeon rewards aren't shuffled or ocarinas aren't shuffled, force child spawn
         if self.door_of_time == DoorOfTime.option_closed and (
             any([self.shuffle_dungeon_rewards == ShuffleDungeonRewards.option_off,
-                    self.shuffle_ocarinas == ShuffleOcarinas,
+                    self.shuffle_ocarinas == ShuffleOcarinas.option_false,
                     self.shuffle_songs == ShuffleSongs.option_off])):
             self.starting_age.value = StartingAge.option_child
             return
@@ -1712,6 +1770,7 @@ class SohOptions(PerGameCommonOptions):
 
         if self.shuffle_100_gs_reward == Shuffle100GSReward.option_false:
             self.gs_100_hint.value = GS100Hint.option_false
+
 
     def calculate_progression_skulltula_count(self, token_reward_counts) -> int:
         # First we need to figure out how many skulltula tokens are shuffled.
@@ -1771,6 +1830,43 @@ class SohOptions(PerGameCommonOptions):
 
         # Make sure this can't exceed the total amount of shuffled tokens
         return min(needed_shuffled_tokens, shuffled_token_count)
+
+
+    def adjust_greg_modifiers(self):
+        # Check Rainbow Bridge and GBK options if their greg modifier is not Reward.
+        # The if they are set to the max, they must be decremented once
+        def decrement_option(option):
+            if option != None:
+                if option == option.range_end:
+                        option.value -= 1
+
+                option = None
+        
+        option = None
+        
+        if self.rainbow_bridge_greg_modifier != RainbowBridgeGregModifier.option_reward:
+            if self.rainbow_bridge == RainbowBridge.option_stones:
+                option = self.rainbow_bridge_stones_required
+            elif self.rainbow_bridge == RainbowBridge.option_medallions:
+                option = self.rainbow_bridge_medallions_required
+            elif self.rainbow_bridge == RainbowBridge.option_dungeon_rewards:
+                option = self.rainbow_bridge_dungeon_rewards_required
+            elif self.rainbow_bridge == RainbowBridge.option_dungeons:
+                option = self.rainbow_bridge_dungeons_required
+
+            decrement_option(option)
+
+        if self.ganons_castle_boss_key_greg_modifier != GanonsCastleBossKeyGregModifier.option_reward:
+            if self.ganons_castle_boss_key == GanonsCastleBossKey.option_lacs_stones:
+                option = self.ganons_castle_boss_key_stones_required
+            elif self.ganons_castle_boss_key == GanonsCastleBossKey.option_lacs_medallions:
+                option = self.ganons_castle_boss_key_medallions_required
+            elif self.ganons_castle_boss_key == GanonsCastleBossKey.option_lacs_dungeon_rewards:
+                option = self.ganons_castle_boss_key_dungeon_rewards_required
+            elif self.ganons_castle_boss_key == GanonsCastleBossKey.option_lacs_dungeons:
+                option = self.ganons_castle_boss_key_dungeons_required
+
+            decrement_option(option)
 
 
 soh_option_groups = [
@@ -1903,8 +1999,9 @@ soh_option_groups = [
         IceTrapFillerReplacement
     ]),
     OptionGroup("Hints", [
-        #GossipStoneHints
+        HintClarity,
         #HintDistribution
+        GossipStoneHints,
         ToTAltarHint,
         GanondorfHint,
         SheikLightArrowHint,
@@ -1922,7 +2019,7 @@ soh_option_groups = [
         MalonHint,
         HorsebackArcheryHint,
         FishingPoleHint,
-        WarpSongHint,
+        #WarpSongHint,
         ScrubHintText,
         MerchantHintText,
         GS10Hint,

@@ -4,12 +4,14 @@ import pkgutil
 from typing import Any, ClassVar, Callable
 
 from BaseClasses import CollectionState, Item, Tutorial, ItemClassification, Location
+from rule_builder.cached_world import CachedRuleBuilderWorld
+from rule_builder.rules import Has
 from worlds.AutoWorld import WebWorld, World
 from Fill import fill_restrictive
 from .location_access.overworld.castle_grounds import LocalEvents
-from .Items import SohItem, item_data_table, item_table, item_name_groups, progressive_items
-from .Locations import location_table, token_amounts, SohLocData, location_data_table, create_location_groups
-from .Options import SohOptions, soh_option_groups
+from .Items import SohItem, item_data_table, item_table, SohItemData, progressive_items
+from .Locations import location_table, token_amounts, SohLocData, location_data_table
+from .Options import SohOptions, soh_option_groups, wallet_capacities
 from .Regions import create_regions_and_locations, place_locked_items
 from .Enums import *
 from .ItemPool import create_item_pool, create_filler_item_pool, create_triforce_pieces, get_filler_item, give_starting_items
@@ -22,7 +24,7 @@ from .Presets import oot_soh_options_presets
 from .UniversalTracker import setup_options_from_slot_data
 from settings import Group, Bool
 from Options import OptionError
-from .LogicHelpers import wallet_capacities
+from rule_builder.rules import Has, CanReachLocation, Rule, True_
 from .Hints import CreateNonlocalHints, StaticHint
 from worlds.LauncherComponents import Component, components, Type, launch as launch_component
 
@@ -62,17 +64,36 @@ class SohSettings(Group):
         By default when an item can't be placed in prefill it will be added to the item pool as a backup. This disables that behavoir.
         """
 
-    class SOHInstallPath(str):
+    class SOHExecutablePath(str):
         """
-        Where the game is installed. Used for opening the game through the AP launcher or Webhost
+        Where the game executable is installed. Used for opening the game through the AP launcher or Webhost
+        """
+
+    class SOHSettingsFolder(str):
+        """
+        Where game files and configuration is contained. Used to change shipofharkinian.json settings
         """
 
     allow_true_no_logic: AllowTrueNoLogic | bool = False
     disable_fill_overflow: DisableFillOverflow | bool = False
-    soh_install_path: SOHInstallPath | None = None
+    executable_path: SOHExecutablePath | None = None
+    soh_settings_folder: SOHSettingsFolder | None = None
 
 
-class SohWorld(World):
+@staticmethod
+def create_groups(obj: dict[Items, SohItemData] | dict[str, SohLocData]) -> dict[str, set[str]]:
+    groups: dict[str, set[str]] = dict()
+    for key, data in obj.items():
+        if data.tags is None:
+            continue
+        for tag in data.tags:
+            tag_name = tag.name.replace('_', ' ')
+            if tag_name not in groups:
+                groups[tag_name] = set()
+            groups[tag_name].add(str(key))
+    return groups
+
+class SohWorld(CachedRuleBuilderWorld):
     """A PC Port of Ocarina of Time"""
 
     game = "Ship of Harkinian"
@@ -82,8 +103,8 @@ class SohWorld(World):
     settings: ClassVar[SohSettings]
     location_name_to_id = location_table
     item_name_to_id = item_table
-    item_name_groups = item_name_groups
-    location_name_groups = create_location_groups()
+    item_name_groups = create_groups(item_data_table)
+    location_name_groups = create_groups(location_data_table)
 
     # Universal Tracker stuff, does not do anything in normal gen
     glitches_item_name = Items.GLITCHED
@@ -174,7 +195,7 @@ class SohWorld(World):
             self.options.bottom_of_the_well_key_ring.value = self.passthrough.get("bottom_of_the_well_key_ring", False)
             self.options.gerudo_training_ground_key_ring.value = self.passthrough.get("gerudo_training_ground_key_ring", False)
             self.options.ganons_castle_key_ring.value = self.passthrough.get("ganons_castle_key_ring", False)
-       
+
 
     def create_regions(self) -> None:
         create_regions_and_locations(self)
@@ -210,11 +231,13 @@ class SohWorld(World):
     def get_filler_item_name(self) -> str:
         return get_filler_item(self)
 
-    def set_completion_rule(self) -> None:
+    def set_completion_rule(self, goal: Rule = None) -> None:
         if not self.options.true_no_logic:
             # Actual completion condition.
-            self.multiworld.completion_condition[self.player] = lambda state: state.has(
-                Events.GAME_COMPLETED.value, self.player)
+            if goal == None:
+                super().set_completion_rule(Has(str(Events.GAME_COMPLETED)))
+            else:
+                super().set_completion_rule(goal)
 
     def get_empty_locations_from_list_shuffled(self, location_list: list[Locations]) -> list[Location]:
         locations = []
@@ -241,12 +264,6 @@ class SohWorld(World):
         # Set price rules in advance
         generate_prices(self)
 
-        # disregard all rules if no logic is in effect
-        if self.options.true_no_logic:
-            for entrance in self.get_entrances():
-                entrance.access_rule = lambda state: True
-            for location in self.get_locations():
-                location.access_rule = lambda state: True
 
     def create_items(self) -> None:
         # these are for making the progressive items collect/remove work properly
@@ -280,8 +297,6 @@ class SohWorld(World):
         self.set_completion_rule()
 
     def pre_fill(self) -> None:
-        original_completion_goal = self.multiworld.completion_condition[self.player]
-
         pre_fill_own_dungeon_items(self)
         pre_fill_dungeon_rewards(self)
         pre_fill_songs(self)
@@ -289,14 +304,21 @@ class SohWorld(World):
         pre_fill_overworld_items(self)
         fill_shop_items(self)
 
-        self.multiworld.completion_condition[self.player] = original_completion_goal
+        self.set_completion_rule()
 
     def post_fill(self) -> None:
         hints = CreateNonlocalHints(self)
         for hint in hints:
             self.static_hints.update(hint.serialize())
             
-    def run_prefill(self, item_pool: list[Items], locations: list[Locations], prefill_state: CollectionState | None = None, goal: Callable[[CollectionState], bool] | None = None):
+    def run_prefill(self, item_pool: list[Items], locations: list[Locations], prefill_state: CollectionState | None = None, original_goal: Callable[[CollectionState], bool] | None = None):
+        def create_new_goal(empty_locations: list[Location]):
+            goal = True_()
+            # set region accessability of locations as the goal
+            for reg in empty_locations:
+                goal &= CanReachLocation(str(reg.name))
+            return goal
+        
         # check if we're using specific collectionstate
         if prefill_state is None:
             for item in item_pool:
@@ -304,26 +326,41 @@ class SohWorld(World):
                     self.pre_fill_pool.remove(item)
             
             prefill_state = self.get_pre_fill_state()
-        
-        if goal is None:
-            # set region accessability of locations as the goal
-            accessibility_goal = {self.get_location(loc) for loc in locations}
-            goal = lambda state: all([state.can_reach(reg) for reg in accessibility_goal])
-
-        self.multiworld.completion_condition[self.player] = goal
 
         # get empty, non reserved locations
-        empty_locations = self.get_empty_locations_from_list_shuffled(locations)
+        empty_locations_all = self.get_empty_locations_from_list_shuffled(locations)
+        count_empty_locations_all = len(empty_locations_all)
+        chunk = min(len(item_pool) + 100, count_empty_locations_all)
+
+        # If fill overflow is disabled or the chunk is as large as the original list, use all locations
+        if self.settings.disable_fill_overflow or chunk == count_empty_locations_all:
+            empty_locations = empty_locations_all
+        else:
+            empty_locations = empty_locations_all[:chunk]
+
         items = [self.create_item(str(item)) for item in item_pool]
         self.preplaced_items.extend(items)
-
-        if self.settings.disable_fill_overflow:
-            fill_restrictive(self.multiworld, prefill_state, empty_locations, items, single_player_placement=True, lock=True)
-        else:
-            # Add any unplaced items to the item pool
-            fill_restrictive(self.multiworld, prefill_state, empty_locations, items, single_player_placement=True, lock=True, allow_partial=True)
-            self.add_items_to_item_pool_list(items)
         
+        if original_goal is None:
+            self.set_completion_rule(create_new_goal(empty_locations))
+        else:
+            self.set_completion_rule(original_goal)
+
+        # Determines if a partial or full fill is occuring
+        fill_restrictive(self.multiworld, prefill_state, empty_locations, items, single_player_placement=True, lock=True, allow_partial=(not self.settings.disable_fill_overflow), name="SOH_Prefill_Initial")
+
+        # Check if any items and locations are left. If so try again once more with the rest of the locations
+        if len(items) > 0 and chunk != count_empty_locations_all:
+            empty_locations = empty_locations_all[chunk:]
+
+            if original_goal is None:
+                self.set_completion_rule(create_new_goal(empty_locations))
+
+            fill_restrictive(self.multiworld, prefill_state, empty_locations, items, single_player_placement=True, lock=True, allow_partial=True, name="SOH_Prefill_Secondary")
+        
+        # Add any unplaced items to the item pool
+        self.add_items_to_item_pool_list(items)
+
         for item in items:
             self.preplaced_items.remove(item)
 
@@ -331,14 +368,6 @@ class SohWorld(World):
     def collect(self, state: CollectionState, item: Item) -> bool:
         changed = super().collect(state, item)
         state._soh_stale[self.player] = True  # type: ignore
-
-        if item.name in progressive_items:
-            current_count = state.prog_items[self.player][item.name]
-            for non_prog_version in progressive_items[item.name]:
-                state.prog_items[self.player][non_prog_version] = 1
-                current_count -= 1
-                if not current_count:
-                    break
 
         if item.name == Items.HEART_CONTAINER:
             state.soh_heart_count[self.player] += 1  # type: ignore
@@ -361,12 +390,6 @@ class SohWorld(World):
         changed = super().remove(state, item)
         if changed:
             state._soh_invalidate(self.player)  # type: ignore
-
-        if item.name in progressive_items:
-            current_count = state.prog_items[self.player][item.name]
-            for i, non_prog_version in enumerate(progressive_items[item.name]):
-                if i + 1 > current_count:
-                    state.prog_items[self.player][non_prog_version] = 0
 
         if item.name == Items.HEART_CONTAINER:
             state.soh_heart_count[self.player] -= 1  # type: ignore
@@ -417,7 +440,7 @@ class SohWorld(World):
             "shuffle_master_sword": self.options.shuffle_master_sword.value,
             "shuffle_childs_wallet": self.options.shuffle_childs_wallet.value,
             "shuffle_tycoon_wallet": self.options.shuffle_tycoon_wallet.value,
-            "shuffle_ocarinas": self.options.shuffle_ocarina_buttons.value,
+            "shuffle_ocarinas": self.options.shuffle_ocarinas.value,
             "shuffle_ocarina_buttons": self.options.shuffle_ocarina_buttons.value,
             "shuffle_swim": self.options.shuffle_swim.value,
             "shuffle_gerudo_membership_card": self.options.shuffle_gerudo_membership_card.value,
@@ -513,6 +536,8 @@ class SohWorld(World):
             "tricks_in_logic": self.options.tricks_in_logic.value,
             "medallion_locked_trials": self.options.medallion_locked_trials.value,
             "starting_hearts": self.options.starting_hearts.value,
+            "hint_clarity": self.options.hint_clarity.value,
+            "gossip_stone_hints": self.options.gossip_stone_hints.value,
             "tot_altar_hint": self.options.tot_altar_hint.value,
             "ganondorf_hint": self.options.ganondorf_hint.value,
             "sheik_la_hint": self.options.sheik_la_hint.value,
@@ -530,7 +555,7 @@ class SohWorld(World):
             "malon_hint": self.options.malon_hint.value,
             "horseback_archery_hint": self.options.horseback_archery_hint.value,
             "fishing_pole_hint": self.options.fishing_pole_hint.value,
-            "warp_song_hint": self.options.warp_song_hint.value,
+            #"warp_song_hint": self.options.warp_song_hint.value,
             "scrub_hints": self.options.scrub_hints.value,
             "merchant_hints": self.options.merchant_hints.value,
             "gs_10_hint": self.options.gs_10_hint.value,
@@ -550,5 +575,4 @@ def launch_client(*args: str):
     from .Client import launch
     launch_component(launch, name="Ship of Harkinian Client", args=args)
 
-if SohWorld.settings.soh_install_path is not None:
-    components.append(Component("Ship Of Harkinian Client", game_name="Ship of Harkinian", func=launch_client, component_type=Type.CLIENT, supports_uri=True))
+components.append(Component("Ship Of Harkinian Client", game_name="Ship of Harkinian", func=launch_client, component_type=Type.CLIENT, supports_uri=True))

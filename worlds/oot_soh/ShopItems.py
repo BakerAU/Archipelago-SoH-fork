@@ -321,18 +321,28 @@ def generate_merchant_prices(world: "SohWorld") -> dict[Locations, int]:
     return prices
 
 
-affordable_prices: list[int] = [1,100,201,501]
+affordable_prices: list[int] = [0,1,100,201,501]
 
 def create_random_price(min_price: int, max_price: int, affordable: bool, world: "SohWorld") -> int:
     if affordable:
-        # update to nearest affordable price
-        price_tier = world.random.randrange(0, 4 if world.options.shuffle_tycoon_wallet else 3)
-        
-        # Try to adhere to their max
-        while affordable_prices[price_tier] > max_price:
-            if price_tier == 0:
-                break
-            price_tier -= 1
+        # Try to adhere to their min/max
+        start: int = 0
+        end: int = 0
+        for index, value in enumerate(affordable_prices):
+            if min_price >= value and min_price != 0:
+                start = index
+            if max_price >= value:
+                if not world.options.shuffle_tycoon_wallet and index == len(affordable_prices):
+                    end = 4
+                    break
+                # Need to add one because randrange stop in exclusive
+                end = index + 1
+
+        if start == end:
+            price_tier = start
+        else:
+            price_tier = world.random.randrange(start, end)
+
         price = affordable_prices[price_tier]
     else:
         # randrange needs an actual range to work, so just pick the price directly if min/max are the same.
